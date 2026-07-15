@@ -6,6 +6,44 @@ author: Saurabh Lal
 
 This `NOTES.md` file contains rough notes on this project. Other documents like `SETUP.md`, `GUIDE.md`, and `README.md` files can be created with the help of `NOTES.md`.
 
+# Improvement
+
+We wanted to improve the MCP authentication without risking the already working version in the current project folder or on GitHub.
+
+The concern was that changing files in the existing folder could break the working implementation. We also wanted to avoid Git conflicts between the current project and a new development copy.
+
+We solved this by creating a separate local copy of the GitHub repository:
+
+```bash
+git clone git@github.com:AIMadeSimple/TinyDB-MCP-withAuth.git TinyDB-MCP-auth-refactor
+cd TinyDB-MCP-auth-refactor
+```
+
+This creates a new folder with its own independent Git metadata. It does not affect the original project folder.
+
+Inside the new folder, we create a separate development branch:
+
+```bash
+git switch -c improve-auth
+```
+
+All authentication refactoring happens in this new folder and `improve-auth` branch. The original folder remains unchanged as a safe working backup.
+
+Once the new authentication implementation is tested, commit the focused Auth0
+files on `improve-auth`, fast-forward `main` to that commit, and push `main`.
+This preserves linear history while making the repository's main branch match
+the Auth0 implementation.
+
+```bash
+git commit -m "Use FastMCP Auth0 token verification"
+git switch main
+git merge --ff-only improve-auth
+git push origin main
+```
+
+The `improve-auth` branch can remain as a local recovery reference. Earlier
+implementations are also available in Git history and local comparison files.
+
 
 # Steps to create the TinyDB Remote MCP server with Auth
 
@@ -98,6 +136,20 @@ email/password and Google sign-in; this MCP validates the access token that an
 MCP client sends with every request. All authenticated users currently need the
 single `tinydb:tools` permission and can use all three TinyDB tools.
 
+The published implementation uses three small modules:
+
+- `tinydb_remote_server.py` creates the FastMCP resource server and its tools.
+- `auth0_config.py` loads the Auth0 issuer, API audience, public MCP URL, and
+  required scope from environment variables.
+- `auth0_token_verifier.py` uses `auth0-api-python` to verify Auth0 JWTs, then
+  maps verified claims to MCP's `AccessToken` type.
+
+FastMCP receives `AuthSettings` and the token verifier. It then handles Bearer
+token extraction, required-scope enforcement, protected-resource metadata, and
+standard `401`/`403` responses. The server starts with
+`mcp.run(transport="streamable-http")`; application code does not call
+Uvicorn directly.
+
 Follow Auth0's [Authorization for Your MCP Server](https://auth0.com/ai/docs/mcp/get-started/authorization-for-your-mcp-server)
 quickstart to configure the tenant. In Auth0, enable **Resource Parameter
 Compatibility Profile**, **Include Issuer in Authorization Responses**, and
@@ -132,7 +184,7 @@ verify the result. Run these commands from the project root.
 ```bash
 # Initialize the local repository and create the initial commit
 git init -b main
-git add AGENTS.md NOTES.md .env.example .gitignore auth0_mcp.py pyproject.toml tinydb_remote_server.py uv.lock
+git add NOTES.md .env.example .gitignore auth0_config.py auth0_token_verifier.py pyproject.toml tinydb_remote_server.py uv.lock
 git status --short
 git diff --cached --check
 git commit -m "Initial TinyDB MCP server"
