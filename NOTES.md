@@ -225,14 +225,43 @@ do not store sensitive or durable production data.
 
 ## Step 9: Using MCP Inspector
 
-After the deploy is live, start MCP Inspector locally:
+After the deploy is live, start MCP Inspector locally. Open the UI using the
+`localhost` URL printed by the command (rather than replacing it with
+`127.0.0.1`): the proxy permits `localhost` by default as a DNS-rebinding
+protection.
 
 ```bash
-npx @modelcontextprotocol/inspector
+npx --yes @modelcontextprotocol/inspector
 ```
 
-Open the displayed local URL, select the **Streamable HTTP** transport, and
-enter the remote endpoint:
+In the connection panel, use the following settings:
+
+- **Transport Type:** `Streamable HTTP`
+- **URL:** `https://<render-service-name>.onrender.com/mcp`
+- **Connection Type:** `Via Proxy`
+
+If you start Inspector with `MCP_PROXY_AUTH_TOKEN`, open **Configuration** and
+paste that same value as the proxy session token. A missing or mismatched token
+produces a connection error before Inspector can contact the MCP server.
+
+Open **Authentication** and choose **Quick OAuth Flow**. Inspector discovers
+the MCP protected-resource metadata, dynamically registers a client with
+Auth0, and redirects to the Auth0 login page. Sign in with the enabled
+email/password or Google connection, then return to Inspector and connect.
+
+If you must access Inspector at `http://127.0.0.1:<client-port>`, explicitly
+allow that origin when starting it:
+
+```bash
+ALLOWED_ORIGINS=http://127.0.0.1:6274 CLIENT_PORT=6274 SERVER_PORT=6277 \
+  npx --yes @modelcontextprotocol/inspector
+```
+
+For this OAuth flow to work, Auth0 must have **Dynamic Client Registration**
+enabled and the `tinydb:tools` permission granted by default to third-party
+applications.
+
+The remote endpoint is:
 
 ```text
 https://<render-service-name>.onrender.com/mcp
