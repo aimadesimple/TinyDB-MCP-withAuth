@@ -91,7 +91,39 @@ documents its own port. The `10000` value is only a local fallback.
 
 In this step you add the tools, resources and prompts required to accomplish the goal.
 
-## Step 6: Publish the Repository to GitHub
+## Step 6: Add Authentication
+
+This project uses Auth0 as an OAuth 2.1 authorization server. Auth0 handles
+email/password and Google sign-in; this MCP validates the access token that an
+MCP client sends with every request. All authenticated users currently need the
+single `tinydb:tools` permission and can use all three TinyDB tools.
+
+Follow Auth0's [Authorization for Your MCP Server](https://auth0.com/ai/docs/mcp/get-started/authorization-for-your-mcp-server)
+quickstart to configure the tenant. In Auth0, enable **Resource Parameter
+Compatibility Profile**, **Include Issuer in Authorization Responses**, and
+**Dynamic Client Registration**. Create an API with this identifier:
+
+```text
+https://tinydb-mcp-withauth.onrender.com/mcp
+```
+
+Use the `RS256` signing algorithm, the `rfc9068_profile_authz` token dialect,
+and add the `tinydb:tools` permission. Before enabling Dynamic Client
+Registration for MCP Inspector and ChatGPT, grant `tinydb:tools` as a default
+permission for third-party applications. Promote the Auth0 database and Google
+connections to domain-level connections so external MCP clients can offer both
+sign-in methods.
+
+Copy `.env.example` to `.env` for local development and set `AUTH0_DOMAIN` to
+your tenant domain. On Render, set `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`,
+`MCP_SERVER_URL`, and `AUTH0_REQUIRED_SCOPE` as environment variables. Do not
+commit `.env`, `db.json`, Google credentials, or Auth0 secrets.
+
+After deployment, check that unauthenticated requests return `401` with a
+`WWW-Authenticate` header. Then connect with MCP Inspector or ChatGPT, sign in
+through Auth0, and exercise all three tools with test data.
+
+## Step 7: Publish the Repository to GitHub
 
 Use Git to initialize and commit the project, then use the GitHub CLI (`gh`)
 to authenticate, create the public repository, push the initial commit, and
@@ -100,7 +132,7 @@ verify the result. Run these commands from the project root.
 ```bash
 # Initialize the local repository and create the initial commit
 git init -b main
-git add AGENTS.md NOTES.md .gitignore pyproject.toml tinydb_remote_server.py uv.lock
+git add AGENTS.md NOTES.md .env.example .gitignore auth0_mcp.py pyproject.toml tinydb_remote_server.py uv.lock
 git status --short
 git diff --cached --check
 git commit -m "Initial TinyDB MCP server"
@@ -110,10 +142,10 @@ gh auth login --hostname github.com --web --git-protocol https
 gh auth status
 
 # Create the public repository, configure origin, and push main
-gh repo create AIMadeSimple/TinyDB-MCP --public --source=. --remote=origin --push
+gh repo create AIMadeSimple/TinyDB-MCP-withAuth --public --source=. --remote=origin --push
 
 # Confirm the repository settings and local remote
-gh repo view AIMadeSimple/TinyDB-MCP --json nameWithOwner,visibility,defaultBranchRef,url
+gh repo view AIMadeSimple/TinyDB-MCP-withAuth --json nameWithOwner,visibility,defaultBranchRef,url
 git remote -v
 ```
 
@@ -155,10 +187,10 @@ organization, configures it as the local `origin` remote, and pushes the
 current `main` branch. The explicit `git add` list avoids committing local
 environment files or the runtime TinyDB database.
 
-## Step 7: Deploy the Remote MCP on Render
+## Step 8: Deploy the Remote MCP on Render
 
 In the Render Dashboard, select **New > Web Service**, choose the
-`AIMadeSimple/TinyDB-MCP` repository and the `main` branch, and select the
+`AIMadeSimple/TinyDB-MCP-withAuth` repository and the `main` branch, and select the
 Python runtime. Use these commands:
 
 ```bash
@@ -187,10 +219,11 @@ A commit that changes only `.md` files will not deploy; a commit that also
 changes application files will still trigger a deployment.
 
 TinyDB writes to `db.json` on the service filesystem. On a Free service this
-data is ephemeral and can be lost after a restart or redeploy. This server is
-also public and currently unauthenticated, so do not store sensitive data.
+data is ephemeral and can be lost after a restart or redeploy. Auth0 protects
+the MCP endpoint, but all authenticated users currently share the same data;
+do not store sensitive or durable production data.
 
-## Step 8: Using MCP Inspector
+## Step 9: Using MCP Inspector
 
 After the deploy is live, start MCP Inspector locally:
 
@@ -211,7 +244,7 @@ To list the available tools without the Inspector UI, use its CLI mode:
 npx @modelcontextprotocol/inspector --cli https://<render-service-name>.onrender.com/mcp --transport http --method tools/list
 ```
 
-## Step 9: Connect MCP to OpenAI Web App
+## Step 10: Connect MCP to OpenAI Web App
 
 1. In ChatGPT, open **Settings > Security and login** and enable **Developer mode**.
 2. Open **Settings > Plugins** or visit `https://chatgpt.com/plugins`.
@@ -222,9 +255,10 @@ npx @modelcontextprotocol/inspector --cli https://<render-service-name>.onrender
 4. Click **Create** and confirm ChatGPT shows `insert_data`, `get_all_data`, and `delete_all_data`.
 5. In a separate ChatGPT project, click **+ > More**, select the app, and test inserting or retrieving data.
 
-Use test data only: this server is public and unauthenticated.
+Use test data only: all authenticated users currently share the same TinyDB
+records.
 
-## Step 10: Create a README.md file
+## Step 11: Create a README.md file
 
 The README.md file should contain a basic overview of this project.
 

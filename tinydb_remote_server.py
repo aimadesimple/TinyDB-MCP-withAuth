@@ -1,21 +1,19 @@
 import os
-from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
-from tinydb import TinyDB
 from typing import Dict, List
 
-load_dotenv()
+import uvicorn
+from tinydb import TinyDB
 
-mcp = FastMCP(
-    "tinydb-remote-mcp",
-    host="0.0.0.0",
-    port=int(os.environ.get("PORT", "10000")),
-)
+from auth0_mcp import Auth0Config, Auth0Mcp
 
-db = TinyDB('db.json')
+auth0_mcp = Auth0Mcp("tinydb-remote-mcp", Auth0Config.from_env())
+mcp = auth0_mcp.mcp
+app = auth0_mcp.app()
+
+db = TinyDB("db.json")
 
 @mcp.tool()
-def insert_data(data:dict) -> str:
+def insert_data(data: dict) -> str:
     """
     Insert a single document into the database.
 
@@ -64,4 +62,4 @@ def delete_all_data() -> str:
     return "Data deleted successfully"
 
 if __name__ == "__main__":
-    mcp.run(transport='streamable-http')
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))
